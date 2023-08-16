@@ -25,17 +25,17 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      # cache
-      - name: Cache node modules
-        id: node-cache
-        uses: actions/cache@v2
-        env:
-          cache-name: cache-node-modules
-        with:
-          path: node_modules
-          key: ${{runner.os}}-node-modules-${{hashFiles(`**/package-lock.json`)}}
-          restore-keys: |
-            ${{runner.os}}-node-modules-
+#      # cache
+#      - name: Cache node modules
+#        id: node-cache
+#        uses: actions/cache@v2
+#        env:
+#          cache-name: cache-node-modules
+#        with:
+#          path: node_modules
+#          key: ${{runner.os}}-node-modules-${{hashFiles(`**/package-lock.json`)}}
+#          restore-keys: |
+#            ${{runner.os}}-node-modules-
 
           #Install project dependencies, test and build
       - name: Install dependencies
