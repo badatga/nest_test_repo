@@ -1,0 +1,207 @@
+name: deploy main to EB
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  # CI Pipeline
+  build:
+    name: CI Pipeline
+    runs-on: ubuntu-20.04
+#    env:
+#      working-directory: './backend'
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x]
+    steps:
+      # Checkout
+      - uses: actions/checkout@v3
+
+      # Install Node.js
+      - name: Install Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # cache
+      - name: Cache node modules
+        id: node-cache
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: node_modules
+          key: ${{runner.os}}-node-modules-${{hashFiles(`**/package-lock.json`)}}
+          restore-keys: |
+            ${{runner.os}}-node-modules-
+
+          #Install project dependencies, test and build
+      - name: Install dependencies
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        run: npm install
+      - name: Run build
+        run : npm run build
+
+#      # Install Node.js dependencies
+#      - name: Install dependencies
+#        working-directory: ${{ env.working-directory }}
+#        run: npm install
+#
+#      # Build Typescript
+#      - name: Run build
+#        working-directory: ${{ env.working-directory }}
+#        run: npm run build
+
+  # CD Pipeline
+  deploy:
+    name: CD Pipeline
+    runs-on: ubuntu-20.04
+#    env:
+#      working-directory: './backend'
+    strategy:
+      matrix:
+        node-version: ['16.x', '18.x']
+    needs: build
+    steps:
+      # Checkout
+      - uses: actions/checkout@v3
+
+      - name: Create env file
+        run: |
+          touch .env
+          echo PORT=8081 >> .env
+          echo NODE_ENV=${{ secrets.NODE_ENV }} >> .env
+          cat .env
+        # Initialize Node.js
+      - name: Install Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+        # Install project dependencies and build
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run build
+        run: npm run build
+
+        # Install AWS CLI 2
+      - name: Install AWS CLI 2
+        run: |
+                 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                 unzip awscliv2.zip
+                 which aws
+                 sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+
+        # Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Make to ZIP file with source code
+      # -x 명령어 뒤에 해당하는 파일은 zip 파일 생성 시 제외
+      - name: Generate deployment package
+        run: zip -r deploy.zip . -x '*.git*' './src/*' './aws/*' './node_modules/*' awscliv2.zip
+
+
+
+      #      # Create .common.env file
+#      - name: Create .common.env file
+#        working-directory: ${{ env.env-directory }}
+#        run: |
+#          touch .common.env
+#          echo TZ=Asia/Seoul >> .common.env
+#          echo PORT=8081 >> .common.env
+#          echo ORIGIN=${{ secrets.ORIGIN }} >> .common.env
+#          echo JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} >> .common.env
+#          echo SALT_ROUNDS=${{ secrets.SALT_ROUNDS }} >> .common.env
+#          cat .common.env
+#
+#      # Create .kakao.env file
+#      - name: Create .kakao.env file
+#        working-directory: ${{ env.env-directory }}
+#        run: |
+#          touch .kakao.env
+#          echo KAKAO_REDIRECT_URL=${{ secrets.KAKAO_REDIRECT_URL }} >> .kakao.env
+#          echo KAKAO_CLIENT_KEY=${{ secrets.KAKAO_CLIENT_KEY }} >> .kakao.env
+#          echo KAKAO_ADMIN_KEY=${{ secrets.KAKAO_ADMIN_KEY }} >> .kakao.env
+#          cat .kakao.env
+#
+#      # Create .database.env file
+#      - name: Create .database.env file
+#        working-directory: ${{ env.env-directory }}
+#        run: |
+#          touch .database.env
+#          echo MYSQL_DB_HOST=${{ secrets.MYSQL_DB_HOST }} >> .database.env
+#          echo MYSQL_DB_PORT=${{ secrets.MYSQL_DB_PORT }} >> .database.env
+#          echo MYSQL_DB_USER=${{ secrets.MYSQL_DB_USER }} >> .database.env
+#          echo MYSQL_DB_PASSWORD=${{ secrets.MYSQL_DB_PASSWORD }} >> .database.env
+#          echo MYSQL_DB_DATABASE=${{ secrets.MYSQL_DB_DATABASE }} >> .database.env
+#          echo MYSQL_DB_SYNC=${{ secrets.MYSQL_DB_SYNC }} >> .database.env
+#          cat .database.env
+#
+#      # Install Node.js
+#      - name: Install Node.js ${{ matrix.node-version }}
+#        uses: actions/setup-node@v3
+#        with:
+#          node-version: ${{ matrix.node-version }}
+#
+#      # Install Node.js dependencies
+#      - name: Install dependencies
+#        working-directory: ${{ env.working-directory }}
+#        run: npm install
+#
+#      # Build Typescript
+#      - name: Run build
+#        working-directory: ${{ env.working-directory }}
+#        run: npm run build
+
+#      # Install AWS CLI 2
+#      - name: Install AWS CLI 2
+#        working-directory: ${{ env.working-directory }}
+#        run: |
+#          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+#          unzip awscliv2.zip
+#          which aws
+#          sudo ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+
+#      # Configure AWS credentials
+#      - name: Configure AWS credentials
+#        uses: aws-actions/configure-aws-credentials@v1
+#        with:
+#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Make to ZIP file with source code
+      # -x 명령어 뒤에 해당하는 파일은 zip 파일 생성 시 제외
+#      - name: Generate deployment Beanstalk
+#        working-directory: ${{ env.working-directory }}
+#        run: zip -r deploy.zip . -x '*.git*' './src/*' './aws/*' awscliv2.zip
+
+#      # Get Current Time
+#      - name: Get Current time
+#        uses: josStorer/get-current-time@v2
+#        id: current-time
+#        with:
+#          format: YYYYMMDD-HH-mm-ss
+#          utcOffset: '+09:00'
+
+      # Deploy to Elastic Beanstalk
+      # application_name 과 environment_name은 꼭 AWS EB에 기재한 이름과 같아야 한다.
+      - name: Deploy to EB
+        uses: einaregilsson/beanstalk-deploy@v20
+        with:
+          region: ${{ secrets.AWS_REGION }}
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          application_name: ${{ secrets.AWS_APPLICATION_NAME }}
+          environment_name: ${{ secrets.AWS_ENVIRONMENT_NAME }}
+          version_label: ${{ github.SHA }}
+          deployment_package: deploy.zip
+          wait_for_environment_recovery: 300
