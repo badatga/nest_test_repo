@@ -3,7 +3,7 @@ name: Deploy to Elastic Beanstalk
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   deploy:
@@ -11,36 +11,27 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Install Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14' # 사용하려는 Node.js 버전
+      - name: Install dependencies
+        run: yarn install
 
-      - name: Install AWS CLI
-        run: |
-          sudo apt-get install -y python3-pip
-          pip3 install awscli
+      - name: Build application
+        run: yarn build
 
       - name: Configure AWS credentials
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region your-aws-region
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
 
-      - name: Install Nest.js dependencies
-        run: |
-          cd your-application-directory
-          npm install
-
-      - name: Build Nest.js application
-        run: |
-          cd your-application-directory
-          npm run build
-
-      - name: Deploy to Elastic Beanstalk
-        run: |
-          cd your-application-directory
-          eb init -p node.js your-application-name
-          eb deploy
+      - name: Upload application to Elastic Beanstalk
+        uses: aws-actions/elastic-beanstalk-deploy@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+          application-name: nestjs-app
+          environment-name: production
+          application-version: ${{ github.sha }}
