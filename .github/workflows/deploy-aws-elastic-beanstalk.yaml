@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Run build
-        run : npm run build
+        run : npm run start
 
   # CD Pipeline
   deploy:
@@ -53,7 +53,7 @@ jobs:
         run: npm install
 
       - name: Run build
-        run: npm run build
+        run: npm run start
 
       - name: Install AWS CLI 2
         run: |
