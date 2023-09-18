@@ -53,7 +53,7 @@ jobs:
         run: npm install
 
       - name: Run build
-        run: npm run start
+        run: npm run build
 
       - name: Install AWS CLI 2
         run: |
